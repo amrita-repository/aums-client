@@ -13,7 +13,7 @@
 
 ### Open Source License
 
-Unless explicitly stated otherwise all files in this repository are licensed under the [MIT License](https://opensource.org/licenses/MIT). All projects **must** properly attribute [The Original Source](https://github.com/rajkumaar23/AmritaRepo).
+Unless explicitly stated otherwise all files in this repository are licensed under the [MIT License](https://opensource.org/licenses/MIT). All projects **must** properly attribute [The Original Source](https://github.com/rajkumaar23/aums-client).
         
     MIT License
     
