@@ -27,6 +27,12 @@ use AUMS\API;
 require_once 'api.php';
 require_once 'config.php';
 
-$api = new API(USERNAME,PASSWORD);
+if(isset($_GET['username']) && isset($_GET['password'])){
+    $username = $_GET['username'];
+    $password = $_GET['password'];
+    $api = new API($username,$password);
+}else{
+    $api = new API(USERNAME,PASSWORD);
+}
 header('Content-Type: application/json');
 echo $api->getData();
