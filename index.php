@@ -23,6 +23,10 @@
  * SOFTWARE.
  */
 
+//UNCOMMENT THESE TWO LINES INCASE YOU WANT TO DEBUG
+//error_reporting(E_ALL);
+//ini_set('display_errors', 1);
+
 use AUMS\API;
 require_once 'api.php';
 require_once 'config.php';

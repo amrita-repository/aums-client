@@ -108,7 +108,7 @@ class API{
                     $myVar =  explode('myVar = "',$script->plaintext);
                 }
             }
-            $this->studentHashID = explode('"',$myVar[1])[0];
+            //$this->studentHashID = explode('"',$myVar[1])[0];
             $output = array(
                 'username' => $username,
                 'info' => $this->getInfo(),
@@ -235,7 +235,7 @@ class API{
                                     $data['Type'] = trim($values[4]->plaintext);
                                     $data['Grade'] = trim($values[5]->plaintext);
                                 } else {
-                                    $data['SGPA'] = $values[1]->plaintext;
+                                    $data['SGPA'] = isset($values[1]->plaintext) ?$values[1]->plaintext : "0.0";
                                 }
                                 array_push($thisSem, $data);
                             }
