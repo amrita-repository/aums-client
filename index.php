@@ -28,15 +28,18 @@
 //ini_set('display_errors', 1);
 
 use AUMS\API;
-require_once 'api.php';
-require_once 'config.php';
 
-if(isset($_GET['username']) && isset($_GET['password'])){
+require_once 'api.php';
+if (file_exists('config.php')) {
+    require_once 'config.php';
+}
+
+if (isset($_GET['username']) && isset($_GET['password'])) {
     $username = $_GET['username'];
     $password = $_GET['password'];
-    $api = new API($username,$password);
-}else{
-    $api = new API(USERNAME,PASSWORD);
+    $api = new API($username, $password);
+} else {
+    $api = new API(USERNAME, PASSWORD);
 }
 header('Content-Type: application/json');
 echo $api->getData();

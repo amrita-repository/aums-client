@@ -27,136 +27,108 @@ namespace AUMS;
 
 require_once 'vendor/autoload.php';
 
+use Exception;
 use GuzzleHttp\Client;
-use \GuzzleHttp\Exception\GuzzleException;
-use Sunra\PhpSimple\HtmlDomParser;
+use GuzzleHttp\Exception\GuzzleException;
+use voku\helper\HtmlDomParser;
 
 
-class API{
+class API
+{
 
-    private $username,$password,$session;
+    private $username, $password, $session;
     private $client;
     private $baseURI;
-    private $studentHashID;
     private $semesterMAP;
 
-    public function __construct($username,$password)
+    public function __construct($username, $password)
     {
-        $this->username=$username;
-        $this->password=$password;
-        $this->semesterMAP=$this->mapSemester();
-        $this->baseURI='https://amritavidya.amrita.edu:8444';
-        $this->client=new Client([
-            'base_uri' =>$this->baseURI,
+        $this->username = $username;
+        $this->password = $password;
+        $this->semesterMAP = $this->mapSemester();
+        $this->baseURI = 'https://aumscb.amrita.edu';
+        $this->client = new Client([
+            'base_uri' => $this->baseURI,
             'cookies' => true
         ]);
-        $this->session=$this->getSession();
+        $this->session = $this->getSession();
     }
 
-    public function getData(){
-        $body=[
+    public function getData()
+    {
+        $body = [
             'username' => $this->username,
             'password' => $this->password,
-            'lt' => $this->session['lt'],
+            'execution' => $this->session['execution'],
             '_eventId' => 'submit',
-            'submit'   => 'LOGIN'
+            'submit' => 'LOGIN'
         ];
         try {
-            $this->client->request('POST',$this->session['action'],[
+            $this->client->request('POST', $this->session['action'], [
                 'form_params' => $body
             ]);
-            $response = $this->client->request('GET',"/aums/Jsp/Core_Common/index.jsp?task=off");
+            $response = $this->client->request('GET', "/aums/Jsp/Core_Common/index.jsp?task=off");
             return $this->getUserData($response);
-        }catch (GuzzleException $e){
+        } catch (GuzzleException $e) {
             return json_encode(array(
                 'error' => $e->getMessage()
             ));
         }
     }
 
-    public function getUserData($response){
-
-        if($response != null){
-             $pageDOM = HtmlDomParser::str_get_html($response->getBody());
-             $td = $pageDOM->find('td');
-             foreach ($td as $item) {
-                 if ($item->width == '70%' && $item->class == 'style3') {
-                     $welcomeText = $item->plaintext;
-                 }
-             }
-             if($welcomeText == null){
-                 return json_encode(array(
-                     'error' => 'Error occurred'
-                 ));
-             }
-             $welcomeText = str_replace('&nbsp;', '', $welcomeText);
-             $welcomeText = str_replace('Welcome', '', $welcomeText);
-             $welcomeText = str_replace(')', '', $welcomeText);
-             $welcomeText = trim($welcomeText);
-             $result = explode('(', $welcomeText);
-             $name = trim($result[0]);
-             $username = strtoupper(trim($result[1]));
-
-
-            $scripts = $pageDOM -> find('script');
-            $count=0;
-            foreach ($scripts as $script){
-                if($script->language == 'JavaScript')
-                {
-                    $count++;
-                    if($count == 3)
-                    $myVar =  explode('myVar = "',$script->plaintext);
-                }
-            }
-            //$this->studentHashID = explode('"',$myVar[1])[0];
+    public function getUserData($response)
+    {
+        if ($response != null) {
             $output = array(
-                'username' => $username,
+                'username' => $this->username,
                 'info' => $this->getInfo(),
-                'grades'=>$this->getGrades(),
+                'grades' => $this->getGrades(),
             );
-            return str_replace('\u00a0','',json_encode($output));
+            return str_replace('\u00a0', '', json_encode($output));
 
-        }else{
+        } else {
             return null;
         }
     }
 
 
-    public function getInfo(){
+    public function getInfo()
+    {
 
-        $response = $this->client->request('GET','aums/Jsp/Student/Student.jsp?action=UMS-SRM_INIT_STUDENTPROFILE_SCREEN&isMenu=true');
-        $infoDOM = HtmlDomParser::str_get_html($response->getBody());
+        $response = $this->client->request('GET', 'aums/Jsp/Student/Student.jsp?action=UMS-SRM_INIT_STUDENTPROFILE_SCREEN&isMenu=true');
+        $infoDOM = HtmlDomParser::str_get_html((string)$response->getBody());
         $tables = $infoDOM->find('table');
-        foreach ($tables as $table){
-            if($table->class == 'studInfo'){
+        foreach ($tables as $table) {
+            if ($table->class == 'studInfo') {
                 $values = $table->find('td');
             }
         }
         $studentInfo = array();
-        for($i=0;$i<sizeof($values);$i+=2){
+        for ($i = 0; $i < count($values); $i += 2) {
             $key = trim($values[$i]->plaintext);
-            $value = trim($values[$i+1]->plaintext);
-            $key = str_replace(':','',$key);
+            $value = trim($values[$i + 1]->plaintext);
+            $key = str_replace(':', '', $key);
             $key = str_replace('&nbsp;', '', $key);
             $value = str_replace('&nbsp;', '', $value);
-            $studentInfo[$key]=$value;
+            $studentInfo[$key] = $value;
         }
         $studentInfo['CGPA'] = $this->getCGPA();
         return $studentInfo;
     }
 
-    public function getCGPA(){
+    public function getCGPA()
+    {
         $params = [
             'action' => 'UMS-EVAL_STUDPERFORMSURVEY_INIT_SCREEN',
             'isMenu' => 'true'
         ];
         try {
-            $response = $this->client->request('GET','/aums/Jsp/StudentGrade/StudentPerformanceWithSurvey.jsp',[
+            $response = $this->client->request('GET', '/aums/Jsp/StudentGrade/StudentPerformanceWithSurvey.jsp', [
                 'query' => $params
             ]);
-            if($response->getStatusCode() == 200) {
-                $CGPAPage = HtmlDomParser::str_get_html($response->getBody());
-                $td= $CGPAPage->find('td');
+            if ($response->getStatusCode() == 200) {
+                $CGPAPage = HtmlDomParser::str_get_html((string)$response->getBody());
+                $td = $CGPAPage->find('td');
                 foreach ($td as $item) {
                     if ($item->width == '19%' && $item->class == 'rowBG1') {
                         $currentCGPA = $item->plaintext;
@@ -164,10 +136,10 @@ class API{
                     }
                 }
                 return $currentCGPA;
-            }else{
-                return ['error'=>'An error occurred while connecting to server'];
+            } else {
+                return ['error' => 'An error occurred while connecting to server'];
             }
-        }catch (GuzzleException $exception){
+        } catch (GuzzleException $exception) {
             die($exception->getMessage());
         }
     }
@@ -179,17 +151,16 @@ class API{
         );
         try {
             $response = $this->client->request('GET', '/cas/login?' . http_build_query($query));
-        }catch (GuzzleException $exception){
+        } catch (GuzzleException $exception) {
             die($exception->getMessage());
         }
         if ($response->getStatusCode() == 200) {
-            $loginPage = HtmlDomParser::str_get_html($response->getBody());
-
+            $loginPage = HtmlDomParser::str_get_html((string)$response->getBody());
             $action = $loginPage->find('#fm1')[0]->action;
-            $lt = $loginPage->find('input[name=lt]')[0]->value;
+            $execution = $loginPage->find('input[name=execution]')[0]->value;
             return array(
                 'action' => $action,
-                'lt' => $lt
+                'execution' => $execution
             );
         } else {
             die('Couldn\'t connect to server');
@@ -197,18 +168,19 @@ class API{
     }
 
 
-    public function getGrades(){
-        $map=$this->mapSemester();
+    public function getGrades()
+    {
+        $map = $this->mapSemester();
         $grades = array();
-        $semester = array(7,8,231,9,10,232,11,12,233,13,14,234,72,73,243,138,139,244,177,190,219);
-        $gradeCount=1;
+        $semester = array(7, 8, 231, 9, 10, 232, 11, 12, 233, 13, 14, 234, 72, 73, 243, 138, 139, 244, 177, 190, 219);
+        $gradeCount = 1;
         $body = [
             'htmlPageTopContainer_hiddentblGrades' => '',
             'htmlPageTopContainer_status' => '',
             'htmlPageTopContainer_action' => 'UMS-EVAL_STUDPERFORMSURVEY_CHANGESEM_SCREEN',
-            'htmlPageTopContainer_notify'=> ''
+            'htmlPageTopContainer_notify' => ''
         ];
-        for($i=0;$i<21;$i++) {
+        for ($i = 0; $i < count($semester); $i++) {
             $body['Page_refIndex_hidden'] = $gradeCount++;
             $body['htmlPageTopContainer_selectStep'] = $semester[$i];
             try {
@@ -217,35 +189,35 @@ class API{
                 ]);
                 if ($response->getStatusCode() == 200) {
                     try {
-                        $gradesDOM = HtmlDomParser::str_get_html($response->getBody());
+                        $gradesDOM = HtmlDomParser::str_get_html((string)$response->getBody());
                         $isPublished = $gradesDOM->find('input[name=htmlPageTopContainer_status]')[0];
                         if ($isPublished->value == 'Result Not Published.') {
                             $thisSem = null;
                         } else {
                             $thisSem = array();
-                            $table = $gradesDOM->find('table[width=75%] tbody')[0];
+                            $table = $gradesDOM->find('table[border=1]')[0];
                             $rows = $table->find('tr');
                             for ($j = 1; $j < sizeof($rows); ++$j) {
                                 $data = array();
                                 $row = $rows[$j];
-                                $values = $row->find('td span');
+                                $values = $row->find('td > span');
                                 if (sizeof($values) > 2) {
-                                    $data['CourseCode'] = trim($values[1]->plaintext);
-                                    $data['CourseTitle'] = trim($values[2]->plaintext);
-                                    $data['Type'] = trim($values[4]->plaintext);
-                                    $data['Grade'] = trim($values[5]->plaintext);
+                                    $data['CourseCode'] = preg_replace('!\s+!', ' ', $values[1]->plaintext);
+                                    $data['CourseTitle'] = preg_replace('!\s+!', ' ', $values[2]->plaintext);
+                                    $data['Type'] = preg_replace('!\s+!', ' ', $values[4]->plaintext);
+                                    $data['Grade'] = preg_replace('!\s+!', ' ', $values[5]->plaintext);
                                 } else {
-                                    $data['SGPA'] = isset($values[1]->plaintext) ?$values[1]->plaintext : "0.0";
+                                    $data['SGPA'] = isset($values[1]->plaintext) ? $values[1]->plaintext : "0.0";
                                 }
                                 array_push($thisSem, $data);
                             }
                             $grades[array_search($semester[$i], $map)] = $thisSem;
                         }
-                    } catch (\Exception $exception) {
-
+                    } catch (Exception $exception) {
+                        die($exception->getMessage());
                     }
                 }
-            }catch (GuzzleException $exception){
+            } catch (GuzzleException $exception) {
                 $grades[array_search($semester[$i], $map)] = null;
             }
         }
@@ -253,29 +225,30 @@ class API{
     }
 
 
-    public function mapSemester(){
+    public function mapSemester()
+    {
         $map = array(
             1 => 7,
             2 => 8,
             'Vacation 1' => 231,
             3 => 9,
             4 => 10,
-            'Vacation 2'=>232,
+            'Vacation 2' => 232,
             5 => 11,
             6 => 12,
             'Vacation 3' => 233,
             7 => 13,
             8 => 14,
-            'Vacation 4'=>234,
+            'Vacation 4' => 234,
             9 => 72,
-            10 =>73,
-            'Vacation 5'=>243,
-            11=>138,
-            12=>139,
-            'Vacation 6'=>244,
-            13=>177,
-            14=>190,
-            15=>219
+            10 => 73,
+            'Vacation 5' => 243,
+            11 => 138,
+            12 => 139,
+            'Vacation 6' => 244,
+            13 => 177,
+            14 => 190,
+            15 => 219
         );
 
         return $map;
